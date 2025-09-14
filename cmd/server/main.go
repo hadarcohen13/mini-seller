@@ -6,12 +6,15 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/hadarco13/mini-seller/internal/middleware"
 )
 
 func main() {
 
 	muxRouter := mux.NewRouter()
 
+	muxRouter.Use(middleware.LoggingMiddleware)
+	
 	muxRouter.HandleFunc("/healthCheck", healthCheckHandler).Methods("GET")
 
 	port := "8080"
