@@ -1,39 +1,54 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"net/http"
+	//"os"
+	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/hadarco13/mini-seller/internal/config"
-	"github.com/hadarco13/mini-seller/internal/middleware"
+	"github.com/hadarco13/mini-seller/cmd/server"
+	"github.com/hadarco13/mini-seller/internal/models"
+	"github.com/pkg/errors"
+)
+
+const (
+	configPath = "./config/environments/"
+	envKeyEnv  = "env"
 )
 
 func main() {
 
-	if err := config.LoadConfig(); err != nil {
-		log.Fatal("Failed to load configuration:", err)
+	/*	env := os.Getenv(envKeyEnv)
+		if env == "" {
+			log.Fatalf("Error: env is not defined")
+		}
+
+		log.Printf("Mini Seller env: %s", env)
+		conf, err := models.LoadConfig(configPath, env)
+		if err != nil {
+			log.Fatalf("Error while opening conf: %v", err)
+		}
+
+		err = models.PrepareEnv()
+		if err != nil {
+			log.Fatalf("Error while loading env file: %v", errors.Cause(err).Error())
+			return
+		}*/
+
+	//define configuration of the server hardcoded till we will have env configuration
+	conf := models.ServerConfig{
+		Port:                "8080",
+		Host:                "localhost",
+		LogLevel:            "info",
+		Env:                 "development",
+		InitialisationStart: time.Now(),
+	}
+	server, err := server.NewServer(&conf)
+	if err != nil {
+		log.Fatalf("Error while creating server: %v", errors.Cause(err).Error())
 	}
 
-	cfg := config.GetConfig()
-
-	muxRouter := mux.NewRouter()
-	muxRouter.Use(middleware.LoggingMiddleware)
-
-	muxRouter.HandleFunc("/healthCheck", healthCheckHandler).Methods("GET")
-
-	serverAddr := fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port)
-	fmt.Printf("Starting server in %s mode on %s\n", cfg.Environment, serverAddr)
-	if err := http.ListenAndServe(serverAddr, muxRouter); err != nil {
-		log.Fatal("Error starting server:", err)
+	if err = server.Start(); err != nil {
+		log.Fatalf("Error while starting server: %v", err)
 	}
-
-}
-
-// this operation responds with "OK" for healthCheck
-func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "OK")
 
 }
