@@ -1,0 +1,15 @@
+environment: test
+debug: true
+
+server:
+  port: "0"
+  host: "localhost"
+  log_level: "error"
+
+database:
+  host: "localhost"
+  port: 5432
+  user: "postgres"
+  password: ""
+  name: "mini_seller_test"
+  ssl_mode: "disable"

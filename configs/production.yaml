@@ -1,0 +1,15 @@
+environment: production
+debug: false
+
+server:
+  port: "8080"
+  host: "0.0.0.0"
+  log_level: "info"
+
+database:
+  host: "${DB_HOST}"
+  port: 5432
+  user: "${DB_USER}"
+  password: "${DB_PASSWORD}"
+  name: "${DB_NAME}"
+  ssl_mode: "require"
