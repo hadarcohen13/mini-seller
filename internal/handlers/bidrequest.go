@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -18,23 +19,28 @@ func BidRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	logrus.WithField("request_id", requestID).Info("Received bid request")
 
-	// Parse the bid request
-	bidRequest, err := parseBidRequest(r)
+	// Parse the bid request (this will detect and store the version)
+	bidRequest, version, err := parseBidRequestWithVersion(r)
 	if err != nil {
 		middleware.WriteErrorResponse(w, r, err)
 		return
 	}
 
+	// Add version to request context for logging
+	ctx := context.WithValue(r.Context(), "openrtb_version", version)
+	r = r.WithContext(ctx)
+
 	// Extract and log key fields
-	extractAndLogBidRequestFields(bidRequest, requestID)
+	extractAndLogBidRequestFields(bidRequest, requestID, version)
 
 	// For now, return a simple acknowledgment
 	// Later this will be replaced with actual bid response logic
 	response := map[string]interface{}{
-		"status":     "received",
-		"request_id": requestID,
-		"bid_id":     bidRequest.ID,
-		"timestamp":  time.Now().Format(time.RFC3339),
+		"status":          "received",
+		"request_id":      requestID,
+		"bid_id":          bidRequest.ID,
+		"openrtb_version": version,
+		"timestamp":       time.Now().Format(time.RFC3339),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -42,12 +48,12 @@ func BidRequestHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// parseBidRequest parses and validates the incoming bid request JSON
-func parseBidRequest(r *http.Request) (*openrtb.BidRequest, error) {
+// parseBidRequestWithVersion parses and validates the incoming bid request JSON, returning the detected version
+func parseBidRequestWithVersion(r *http.Request) (*openrtb.BidRequest, string, error) {
 	// Read the request body
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		return nil, errors.NewValidationError("INVALID_REQUEST_BODY", "Failed to read request body").
+		return nil, "", errors.NewValidationError("INVALID_REQUEST_BODY", "Failed to read request body").
 			WithCause(err).
 			WithContext("content_length", r.ContentLength)
 	}
@@ -55,29 +61,81 @@ func parseBidRequest(r *http.Request) (*openrtb.BidRequest, error) {
 
 	// Check if body is empty
 	if len(body) == 0 {
-		return nil, errors.NewValidationError("EMPTY_REQUEST_BODY", "Request body cannot be empty").
+		return nil, "", errors.NewValidationError("EMPTY_REQUEST_BODY", "Request body cannot be empty").
 			WithUserMessage("Please provide a valid OpenRTB bid request")
 	}
+
+	// Detect OpenRTB version from headers or default to 2.5
+	version := detectOpenRTBVersion(r, body)
 
 	// Parse JSON into OpenRTB BidRequest
 	var bidRequest openrtb.BidRequest
 	if err := json.Unmarshal(body, &bidRequest); err != nil {
-		return nil, errors.NewValidationError("INVALID_JSON_FORMAT", "Invalid JSON format in bid request").
+		return nil, version, errors.NewValidationError("INVALID_JSON_FORMAT", "Invalid JSON format in bid request").
 			WithCause(err).
 			WithContext("body_size", len(body)).
+			WithContext("detected_version", version).
 			WithUserMessage("Please provide a valid JSON formatted bid request")
 	}
 
-	// Basic validation
-	if err := validateBidRequest(&bidRequest); err != nil {
-		return nil, err
+	// Basic validation with version context
+	if err := validateBidRequest(&bidRequest, version); err != nil {
+		return nil, version, err
 	}
 
-	return &bidRequest, nil
+	return &bidRequest, version, nil
+}
+
+// detectOpenRTBVersion detects the OpenRTB version from headers or request content
+func detectOpenRTBVersion(r *http.Request, body []byte) string {
+	// Check for version in custom headers
+	if version := r.Header.Get("X-OpenRTB-Version"); version != "" {
+		return version
+	}
+	if version := r.Header.Get("OpenRTB-Version"); version != "" {
+		return version
+	}
+
+	// Parse JSON to look for version field in extensions or other indicators
+	var rawRequest map[string]interface{}
+	if err := json.Unmarshal(body, &rawRequest); err == nil {
+		// Check for version in ext field
+		if ext, ok := rawRequest["ext"].(map[string]interface{}); ok {
+			if version, ok := ext["version"].(string); ok {
+				return version
+			}
+			if version, ok := ext["openrtb_version"].(string); ok {
+				return version
+			}
+		}
+
+		// Infer version from field presence (simple heuristics)
+		if _, hasSource := rawRequest["source"]; hasSource {
+			return "2.5" // Source object introduced in 2.5
+		}
+		if _, hasRegs := rawRequest["regs"]; hasRegs {
+			return "2.4" // Regulations object common in 2.4+
+		}
+		if imp, ok := rawRequest["imp"].([]interface{}); ok && len(imp) > 0 {
+			if impMap, ok := imp[0].(map[string]interface{}); ok {
+				if _, hasRwdd := impMap["rwdd"]; hasRwdd {
+					return "2.6" // Rewarded video introduced in 2.6
+				}
+			}
+		}
+	}
+
+	// Default to 2.5 if no version detected
+	return "2.5"
 }
 
 // validateBidRequest performs basic validation on the bid request
-func validateBidRequest(bidRequest *openrtb.BidRequest) error {
+func validateBidRequest(bidRequest *openrtb.BidRequest, version string) error {
+	// Validate OpenRTB version if present
+	if err := validateOpenRTBVersion(bidRequest, version); err != nil {
+		return err
+	}
+
 	// Check required fields according to OpenRTB spec
 	if bidRequest.ID == "" {
 		return errors.NewValidationError("MISSING_BID_REQUEST_ID", "Bid request ID is required").
@@ -102,13 +160,62 @@ func validateBidRequest(bidRequest *openrtb.BidRequest) error {
 	return nil
 }
 
+// validateOpenRTBVersion validates and handles different OpenRTB versions
+func validateOpenRTBVersion(bidRequest *openrtb.BidRequest, version string) error {
+
+	// Log the version being processed
+	logrus.WithFields(logrus.Fields{
+		"bid_request_id":  bidRequest.ID,
+		"openrtb_version": version,
+	}).Info("Processing OpenRTB bid request")
+
+	// Validate supported versions
+	supportedVersions := map[string]bool{
+		"2.0": true,
+		"2.1": true,
+		"2.2": true,
+		"2.3": true,
+		"2.4": true,
+		"2.5": true,
+		"2.6": true,
+	}
+
+	if !supportedVersions[version] {
+		return errors.NewValidationError("UNSUPPORTED_OPENRTB_VERSION", "Unsupported OpenRTB version").
+			WithContext("version", version).
+			WithContext("supported_versions", []string{"2.0", "2.1", "2.2", "2.3", "2.4", "2.5", "2.6"}).
+			WithUserMessage("Please use a supported OpenRTB version (2.0-2.6)")
+	}
+
+	// Apply version-specific validation rules
+	switch version {
+	case "2.0", "2.1":
+		// Earlier versions have stricter requirements
+		if bidRequest.AuctionType == 0 {
+			return errors.NewValidationError("MISSING_AUCTION_TYPE", "Auction type is required for OpenRTB 2.0/2.1").
+				WithContext("version", version).
+				WithUserMessage("Auction type (at) field is required")
+		}
+	case "2.2", "2.3", "2.4", "2.5", "2.6":
+		// Later versions are more flexible
+		// AuctionType defaults to 1 (first-price auction) if not specified
+		if bidRequest.AuctionType == 0 {
+			logrus.WithField("bid_request_id", bidRequest.ID).Debug("Defaulting auction type to first-price for OpenRTB 2.2+")
+		}
+	}
+
+	return nil
+}
+
 // extractAndLogBidRequestFields extracts and logs key fields from the bid request
-func extractAndLogBidRequestFields(bidRequest *openrtb.BidRequest, requestID string) {
+func extractAndLogBidRequestFields(bidRequest *openrtb.BidRequest, requestID string, version string) {
 	// Create base log fields
+
 	logFields := logrus.Fields{
-		"request_id":     requestID,
-		"bid_request_id": bidRequest.ID,
-		"timestamp":      time.Now().Format(time.RFC3339),
+		"request_id":      requestID,
+		"bid_request_id":  bidRequest.ID,
+		"openrtb_version": version,
+		"timestamp":       time.Now().Format(time.RFC3339),
 	}
 
 	// Extract impression details
