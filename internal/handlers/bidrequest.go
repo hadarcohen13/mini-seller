@@ -33,19 +33,13 @@ func BidRequestHandler(w http.ResponseWriter, r *http.Request) {
 	// Extract and log key fields
 	extractAndLogBidRequestFields(bidRequest, requestID, version)
 
-	// For now, return a simple acknowledgment
-	// Later this will be replaced with actual bid response logic
-	response := map[string]interface{}{
-		"status":          "received",
-		"request_id":      requestID,
-		"bid_id":          bidRequest.ID,
-		"openrtb_version": version,
-		"timestamp":       time.Now().Format(time.RFC3339),
-	}
+	// Generate bid response
+	bidResponse := GenerateBidResponse(bidRequest, version, requestID)
 
+	// Return OpenRTB bid response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	json.NewEncoder(w).Encode(bidResponse)
 }
 
 // parseBidRequestWithVersion parses and validates the incoming bid request JSON, returning the detected version
