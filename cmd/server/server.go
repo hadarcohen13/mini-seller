@@ -1,23 +1,24 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/hadarco13/mini-seller/internal/config"
 	"github.com/hadarco13/mini-seller/internal/middleware"
-	"github.com/hadarco13/mini-seller/internal/models"
 )
 
 type Server struct {
-	conf          *models.ServerConfig
-	doneCleanChan chan struct{}
-	httpServer    http.Server
-	signals       chan os.Signal
+	config     *config.AppConfig
+	httpServer *http.Server
+	signals    chan os.Signal
 }
 
 // healthCheckHandler is a simple handler to check server status.
@@ -26,42 +27,68 @@ func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "OK")
 }
 
-func NewServer(conf *models.ServerConfig) (*Server, error) {
+func NewServer() (*Server, error) {
+	cfg := config.GetConfig()
+	if cfg == nil {
+		return nil, fmt.Errorf("configuration not loaded")
+	}
+
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
 	return &Server{
-		conf:          conf,
-		signals:       signals,
-		doneCleanChan: make(chan struct{}, 1),
+		config:  cfg,
+		signals: signals,
 	}, nil
 }
+
 func (s *Server) Start() error {
-	//init router
+	// Initialize router
 	r := mux.NewRouter()
 
-	// Register our first route: a health check endpoint
+	// Register routes
 	r.HandleFunc("/healthCheck", healthCheckHandler).Methods("GET")
 
-	// Apply middleware globally in the correct order
-	//r.Use(middleware.RequestIDMiddleware)
-	//r.Use(middleware.CORSMiddleware)
+	// Apply middleware
 	r.Use(middleware.LoggingMiddleware)
 
-	// Apply rate limiting using values from our config
-	//r.Use(middleware.RateLimiterMiddleware(config.Config.RateLimit.RPS, config.Config.RateLimit.Burst))
+	// Create HTTP server
+	serverAddr := fmt.Sprintf("%s:%s", s.config.Server.Host, s.config.Server.Port)
+	s.httpServer = &http.Server{
+		Addr:    serverAddr,
+		Handler: r,
+	}
 
-	// Start the server
-	port := s.conf.Port
-	fmt.Printf("Server starting on port %s...\n", port)
-	if err := http.ListenAndServe(":"+port, r); err != nil {
-		log.Fatal("ListenAndServe:", err)
+	log.Printf("Server starting in %s mode on %s", s.config.Environment, serverAddr)
+
+	// Start server in a goroutine
+	go func() {
+		if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server failed to start: %v", err)
+		}
+	}()
+
+	// Wait for shutdown signal
+	<-s.signals
+	log.Println("Shutdown signal received, starting graceful shutdown...")
+
+	// Create shutdown context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Shutdown server
+	if err := s.httpServer.Shutdown(ctx); err != nil {
+		log.Printf("Server forced to shutdown: %v", err)
 		return err
 	}
 
-	<-s.doneCleanChan
-	log.Println("Received cleaning done signal")
-	close(s.doneCleanChan)
 	log.Println("Server shutdown successfully")
 	return nil
+}
+
+func (s *Server) Shutdown(ctx context.Context) error {
+	if s.httpServer == nil {
+		return nil
+	}
+	return s.httpServer.Shutdown(ctx)
 }

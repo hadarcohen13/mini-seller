@@ -2,53 +2,25 @@ package main
 
 import (
 	"log"
-	//"os"
-	"time"
 
 	"github.com/hadarco13/mini-seller/cmd/server"
-	"github.com/hadarco13/mini-seller/internal/models"
-	"github.com/pkg/errors"
-)
-
-const (
-	configPath = "./config/environments/"
-	envKeyEnv  = "env"
+	"github.com/hadarco13/mini-seller/internal/config"
 )
 
 func main() {
-
-	/*	env := os.Getenv(envKeyEnv)
-		if env == "" {
-			log.Fatalf("Error: env is not defined")
-		}
-
-		log.Printf("Mini Seller env: %s", env)
-		conf, err := models.LoadConfig(configPath, env)
-		if err != nil {
-			log.Fatalf("Error while opening conf: %v", err)
-		}
-
-		err = models.PrepareEnv()
-		if err != nil {
-			log.Fatalf("Error while loading env file: %v", errors.Cause(err).Error())
-			return
-		}*/
-
-	//define configuration of the server hardcoded till we will have env configuration
-	conf := models.ServerConfig{
-		Port:                "8080",
-		Host:                "localhost",
-		LogLevel:            "info",
-		Env:                 "development",
-		InitialisationStart: time.Now(),
+	// Load configuration
+	if err := config.LoadConfig(); err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
 	}
-	server, err := server.NewServer(&conf)
+
+	// Create server
+	srv, err := server.NewServer()
 	if err != nil {
-		log.Fatalf("Error while creating server: %v", errors.Cause(err).Error())
+		log.Fatalf("Failed to create server: %v", err)
 	}
 
-	if err = server.Start(); err != nil {
-		log.Fatalf("Error while starting server: %v", err)
+	// Start server (blocks until shutdown signal)
+	if err := srv.Start(); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
-
 }
