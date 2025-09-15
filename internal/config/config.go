@@ -2,9 +2,9 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 
+	"github.com/sirupsen/logrus" // Add logrus import
 	"github.com/spf13/viper"
 )
 
@@ -51,12 +51,14 @@ func LoadConfig() error {
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			log.Println("No config file found, using defaults and environment variables")
+			// Use logrus.Info for non-critical messages
+			logrus.Info("No config file found, using defaults and environment variables")
 		} else {
+			// Use logrus.WithError for structured error logging
 			return fmt.Errorf("fatal error reading config file: %w", err)
 		}
 	} else {
-		log.Printf("Using config file: %s", viper.ConfigFileUsed())
+		logrus.Infof("Using config file: %s", viper.ConfigFileUsed())
 	}
 
 	var config AppConfig
@@ -70,7 +72,7 @@ func LoadConfig() error {
 		return fmt.Errorf("config validation failed: %w", err)
 	}
 
-	log.Printf("Configuration loaded successfully for environment: %s", Config.Environment)
+	logrus.Infof("Configuration loaded successfully for environment: %s", Config.Environment)
 	return nil
 }
 
@@ -117,7 +119,7 @@ func validateConfig() error {
 
 func GetConfig() *AppConfig {
 	if Config == nil {
-		log.Fatal("Config not loaded. Call LoadConfig() first.")
+		logrus.Fatal("Config not loaded. Call LoadConfig() first.")
 	}
 	return Config
 }

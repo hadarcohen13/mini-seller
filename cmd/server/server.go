@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/hadarco13/mini-seller/internal/config"
 	"github.com/hadarco13/mini-seller/internal/middleware"
+	"github.com/sirupsen/logrus"
 )
 
 type Server struct {
@@ -59,18 +59,21 @@ func (s *Server) Start() error {
 		Handler: r,
 	}
 
-	log.Printf("Server starting in %s mode on %s", s.config.Environment, serverAddr)
+	logrus.WithFields(logrus.Fields{
+		"mode": s.config.Environment,
+		"addr": serverAddr,
+	}).Info("Server starting")
 
 	// Start server in a goroutine
 	go func() {
 		if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server failed to start: %v", err)
+			logrus.Fatalf("Server failed to start: %v", err)
 		}
 	}()
 
 	// Wait for shutdown signal
 	<-s.signals
-	log.Println("Shutdown signal received, starting graceful shutdown...")
+	logrus.Info("Shutdown signal received, starting graceful shutdown...")
 
 	// Create shutdown context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -78,11 +81,11 @@ func (s *Server) Start() error {
 
 	// Shutdown server
 	if err := s.httpServer.Shutdown(ctx); err != nil {
-		log.Printf("Server forced to shutdown: %v", err)
+		logrus.Errorf("Server forced to shutdown: %v", err)
 		return err
 	}
 
-	log.Println("Server shutdown successfully")
+	logrus.Info("Server shutdown successfully")
 	return nil
 }
 
