@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/hadarco13/mini-seller/internal/config"
+	"github.com/hadarco13/mini-seller/internal/errors"
 	"github.com/hadarco13/mini-seller/internal/middleware"
 	"github.com/sirupsen/logrus"
 )
@@ -30,7 +31,7 @@ func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 func NewServer() (*Server, error) {
 	cfg := config.GetConfig()
 	if cfg == nil {
-		return nil, fmt.Errorf("configuration not loaded")
+		return nil, errors.NewConfigurationError("CONFIG_NOT_LOADED", "configuration not loaded")
 	}
 
 	signals := make(chan os.Signal, 1)
@@ -49,7 +50,9 @@ func (s *Server) Start() error {
 	// Register routes
 	r.HandleFunc("/healthCheck", healthCheckHandler).Methods("GET")
 
-	// Apply middleware
+	// Apply middleware in order
+	r.Use(middleware.RequestIDMiddleware)
+	r.Use(middleware.ErrorHandler)
 	r.Use(middleware.LoggingMiddleware)
 
 	// Create HTTP server

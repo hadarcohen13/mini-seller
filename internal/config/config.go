@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/sirupsen/logrus" // Add logrus import
+	"github.com/hadarco13/mini-seller/internal/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
@@ -51,11 +52,11 @@ func LoadConfig() error {
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			// Use logrus.Info for non-critical messages
 			logrus.Info("No config file found, using defaults and environment variables")
 		} else {
-			// Use logrus.WithError for structured error logging
-			return fmt.Errorf("fatal error reading config file: %w", err)
+			return errors.NewConfigurationError("CONFIG_READ_ERROR", "Failed to read configuration file").
+				WithCause(err).
+				WithDetails(fmt.Sprintf("Error reading config: %v", err))
 		}
 	} else {
 		logrus.Infof("Using config file: %s", viper.ConfigFileUsed())
@@ -63,13 +64,15 @@ func LoadConfig() error {
 
 	var config AppConfig
 	if err := viper.Unmarshal(&config); err != nil {
-		return fmt.Errorf("error unmarshaling config: %w", err)
+		return errors.NewConfigurationError("CONFIG_UNMARSHAL_ERROR", "Failed to parse configuration").
+			WithCause(err).
+			WithDetails(fmt.Sprintf("Error unmarshaling config: %v", err))
 	}
 
 	Config = &config
 
 	if err := validateConfig(); err != nil {
-		return fmt.Errorf("config validation failed: %w", err)
+		return err // validateConfig now returns proper AppError
 	}
 
 	logrus.Infof("Configuration loaded successfully for environment: %s", Config.Environment)
@@ -91,15 +94,17 @@ func setDefaults() {
 
 func validateConfig() error {
 	if Config.Server.Port == "" {
-		return fmt.Errorf("server port cannot be empty")
+		return errors.NewValidationError("EMPTY_SERVER_PORT", "Server port cannot be empty")
 	}
 
 	if port, err := strconv.Atoi(Config.Server.Port); err != nil || port <= 0 || port > 65535 {
-		return fmt.Errorf("invalid server port: %s", Config.Server.Port)
+		return errors.NewValidationError("INVALID_SERVER_PORT", "Server port must be a valid port number").
+			WithContext("port", Config.Server.Port).
+			WithDetails("Port must be between 1 and 65535")
 	}
 
 	if Config.Environment == "" {
-		return fmt.Errorf("environment cannot be empty")
+		return errors.NewValidationError("EMPTY_ENVIRONMENT", "Environment cannot be empty")
 	}
 
 	validEnvs := []string{"development", "staging", "production", "test"}
@@ -111,7 +116,10 @@ func validateConfig() error {
 		}
 	}
 	if !validEnv {
-		return fmt.Errorf("invalid environment: %s. Must be one of: %v", Config.Environment, validEnvs)
+		return errors.NewValidationError("INVALID_ENVIRONMENT", "Invalid environment specified").
+			WithContext("environment", Config.Environment).
+			WithContext("valid_environments", validEnvs).
+			WithDetails(fmt.Sprintf("Environment must be one of: %v", validEnvs))
 	}
 
 	return nil
