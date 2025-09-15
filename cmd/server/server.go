@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/hadarco13/mini-seller/internal/config"
 	"github.com/hadarco13/mini-seller/internal/errors"
+	"github.com/hadarco13/mini-seller/internal/handlers"
 	"github.com/hadarco13/mini-seller/internal/middleware"
 	"github.com/sirupsen/logrus"
 )
@@ -43,19 +44,35 @@ func NewServer() (*Server, error) {
 	}, nil
 }
 
-func (s *Server) Start() error {
-	// Initialize router
-	r := mux.NewRouter()
-
-	// Register routes
-	r.HandleFunc("/healthCheck", healthCheckHandler).Methods("GET")
-
-	// Apply middleware in order
-	r.Use(middleware.RequestIDMiddleware)
+// setupMiddleware applies all middleware to the router.
+func (s *Server) setupMiddleware(r *mux.Router) {
+	// Your custom error handler should go first
 	r.Use(middleware.ErrorHandler)
+
+	// Apply all other middleware in the correct order
+	r.Use(middleware.RequestIDMiddleware)
+	r.Use(middleware.CORSMiddleware)
 	r.Use(middleware.LoggingMiddleware)
 
-	// Create HTTP server
+	// Use config to apply rate limiting
+	rateLimit := 10.0 // 10 requests per second
+	burst := 20       // allow bursts of up to 20 requests
+	if s.config.Debug {
+		rateLimit = 100.0
+		burst = 200
+	}
+	r.Use(middleware.RateLimiterMiddleware(rateLimit, burst))
+}
+
+func (s *Server) Start() error {
+	r := mux.NewRouter()
+
+	s.setupMiddleware(r)
+
+	r.HandleFunc("/healthCheck", healthCheckHandler).Methods("GET")
+
+	r.HandleFunc("/bid", handlers.BidRequestHandler).Methods("POST")
+
 	serverAddr := fmt.Sprintf("%s:%s", s.config.Server.Host, s.config.Server.Port)
 	s.httpServer = &http.Server{
 		Addr:    serverAddr,
