@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 
 	"github.com/hadarco13/mini-seller/internal/errors"
@@ -16,23 +17,13 @@ type ServerConfig struct {
 	LogLevel string `mapstructure:"log_level" yaml:"log_level"`
 }
 
-type DatabaseConfig struct {
-	Host     string `mapstructure:"host" yaml:"host"`
-	Port     int    `mapstructure:"port" yaml:"port"`
-	User     string `mapstructure:"user" yaml:"user"`
-	Password string `mapstructure:"password" yaml:"password"`
-	Name     string `mapstructure:"name" yaml:"name"`
-	SSLMode  string `mapstructure:"ssl_mode" yaml:"ssl_mode"`
-}
-
 type AppConfig struct {
-	Environment string         `mapstructure:"environment" yaml:"environment"`
-	Server      ServerConfig   `mapstructure:"server" yaml:"server"`
-	Database    DatabaseConfig `mapstructure:"database" yaml:"database"`
-	Redis       RedisConfig    `mapstructure:"redis" yaml:"redis"`
-	Debug       bool           `mapstructure:"debug" yaml:"debug"`
-	Buyers      []BuyerConfig  `mapstructure:"buyers" yaml:"buyers"`
-	Logging     LoggingConfig  `mapstructure:"logging" yaml:"logging"`
+	Environment string        `mapstructure:"environment" yaml:"environment"`
+	Server      ServerConfig  `mapstructure:"server" yaml:"server"`
+	Redis       RedisConfig   `mapstructure:"redis" yaml:"redis"`
+	Debug       bool          `mapstructure:"debug" yaml:"debug"`
+	Buyers      []BuyerConfig `mapstructure:"buyers" yaml:"buyers"`
+	Logging     LoggingConfig `mapstructure:"logging" yaml:"logging"`
 }
 
 type LoggingConfig struct {
@@ -58,7 +49,13 @@ type BuyerConfig struct {
 var Config *AppConfig
 
 func LoadConfig() error {
-	viper.SetConfigName("config")
+	// Determine environment-specific config file
+	env := os.Getenv("MINI_SELLER_ENVIRONMENT")
+	if env == "" {
+		env = "development" // default to development
+	}
+
+	viper.SetConfigName(env) // loads development.yaml, production.yaml, or test.yaml
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("./configs")
@@ -140,16 +137,13 @@ func setDefaults() {
 	viper.SetDefault("server.port", "8080")
 	viper.SetDefault("server.host", "localhost")
 	viper.SetDefault("server.log_level", "info")
-	viper.SetDefault("database.host", "localhost")
-	viper.SetDefault("database.port", 5432)
-	viper.SetDefault("database.user", "postgres")
-	viper.SetDefault("database.name", "mini_seller")
-	viper.SetDefault("database.ssl_mode", "disable")
 	viper.SetDefault("redis.host", "localhost")
 	viper.SetDefault("redis.port", "6379")
 	viper.SetDefault("redis.password", "")
 	viper.SetDefault("redis.db", 0)
 	viper.SetDefault("debug", false)
+	viper.SetDefault("logging.level", "info")
+	viper.SetDefault("logging.format", "json")
 }
 
 func validateConfig() error {

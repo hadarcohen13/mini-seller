@@ -74,9 +74,11 @@ func (s *Server) Start() error {
 
 	s.setupMiddleware(r)
 
-	r.HandleFunc("/healthCheck", healthCheckHandler).Methods("GET")
+	r.HandleFunc("/health", healthCheckHandler).Methods("GET")
 
-	r.HandleFunc("/bid", handlers.BidRequestHandler).Methods("POST")
+	r.HandleFunc("/bid/request", handlers.BidRequestHandler).Methods("POST")
+	r.HandleFunc("/bid/test", handlers.BidRequestHandler).Methods("POST")
+
 	r.Handle("/metrics", promhttp.Handler()).Methods("GET")
 
 	serverAddr := fmt.Sprintf("%s:%s", s.config.Server.Host, s.config.Server.Port)

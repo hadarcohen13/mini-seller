@@ -6,10 +6,24 @@ server:
   host: "0.0.0.0"
   log_level: "info"
 
-database:
-  host: "${DB_HOST}"
-  port: 5432
-  user: "${DB_USER}"
-  password: "${DB_PASSWORD}"
-  name: "${DB_NAME}"
-  ssl_mode: "require"
+redis:
+  host: "${REDIS_HOST:-localhost}"
+  port: "${REDIS_PORT:-6379}"
+  password: "${REDIS_PASSWORD}"
+  db: 0
+
+logging:
+  level: "info"
+  format: "json"
+
+buyers:
+  - name: "buyer1"
+    endpoint: "${BUYER1_ENDPOINT}"
+    qps: 15.0
+    burst: 30
+    timeout_ms: 100
+  - name: "buyer2"
+    endpoint: "${BUYER2_ENDPOINT}"
+    qps: 20.0
+    burst: 40
+    timeout_ms: 150

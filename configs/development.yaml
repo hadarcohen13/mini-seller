@@ -6,10 +6,19 @@ server:
   host: "localhost"
   log_level: "debug"
 
-database:
+redis:
   host: "localhost"
-  port: 5432
-  user: "postgres"
+  port: "6379"
   password: ""
-  name: "mini_seller_dev"
-  ssl_mode: "disable"
+  db: 0
+
+logging:
+  level: "debug"
+  format: "text"
+
+buyers:
+  - name: "buyer1"
+    endpoint: "http://buyer1.local/bid"
+    qps: 10.0
+    burst: 20
+    timeout_ms: 100

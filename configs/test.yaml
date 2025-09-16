@@ -6,10 +6,14 @@ server:
   host: "localhost"
   log_level: "error"
 
-database:
+redis:
   host: "localhost"
-  port: 5432
-  user: "postgres"
+  port: "6379"
   password: ""
-  name: "mini_seller_test"
-  ssl_mode: "disable"
+  db: 1
+
+logging:
+  level: "error"
+  format: "text"
+
+buyers: []
