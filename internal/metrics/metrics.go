@@ -117,3 +117,78 @@ func RecordRequest(responseTime time.Duration, hasError bool) {
 func GetGlobalStats() map[string]interface{} {
 	return globalMetrics.GetStats()
 }
+
+// PerformanceMetrics tracks CPU and Redis performance
+type PerformanceMetrics struct {
+	mu sync.RWMutex
+
+	// CPU monitoring
+	cpuUsagePercent float64
+
+	// Redis performance
+	redisLatency    time.Duration
+	redisErrors     int64
+	redisOperations int64
+}
+
+// NewPerformanceMetrics creates a performance metrics tracker
+func NewPerformanceMetrics() *PerformanceMetrics {
+	return &PerformanceMetrics{}
+}
+
+// RecordCPUUsage records CPU usage percentage
+func (pm *PerformanceMetrics) RecordCPUUsage(cpuPercent float64) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+	pm.cpuUsagePercent = cpuPercent
+}
+
+// RecordRedisOperation records Redis operation performance
+func (pm *PerformanceMetrics) RecordRedisOperation(latency time.Duration, success bool) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
+	pm.redisOperations++
+	pm.redisLatency = latency
+
+	if !success {
+		pm.redisErrors++
+	}
+}
+
+// GetPerformanceStats returns current performance metrics
+func (pm *PerformanceMetrics) GetPerformanceStats() map[string]interface{} {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
+	redisErrorRate := float64(0)
+	if pm.redisOperations > 0 {
+		redisErrorRate = float64(pm.redisErrors) / float64(pm.redisOperations) * 100
+	}
+
+	return map[string]interface{}{
+		"cpu_usage_percent": pm.cpuUsagePercent,
+		"redis_latency_ms":  pm.redisLatency.Milliseconds(),
+		"redis_error_rate":  redisErrorRate,
+		"redis_operations":  pm.redisOperations,
+		"redis_errors":      pm.redisErrors,
+	}
+}
+
+// Global performance metrics
+var globalPerformance = NewPerformanceMetrics()
+
+// RecordCPU records CPU usage globally
+func RecordCPU(cpuPercent float64) {
+	globalPerformance.RecordCPUUsage(cpuPercent)
+}
+
+// RecordRedisOp records Redis operation globally
+func RecordRedisOp(latency time.Duration, success bool) {
+	globalPerformance.RecordRedisOperation(latency, success)
+}
+
+// GetPerformanceStats returns global performance stats
+func GetPerformanceStats() map[string]interface{} {
+	return globalPerformance.GetPerformanceStats()
+}

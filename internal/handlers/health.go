@@ -216,6 +216,20 @@ func MetricsHandler(w http.ResponseWriter, r *http.Request) {
 	logrus.Debug("Metrics endpoint accessed")
 }
 
+// PerformanceHandler provides performance monitoring endpoint
+func PerformanceHandler(w http.ResponseWriter, r *http.Request) {
+	performanceStats := metrics.GetPerformanceStats()
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(performanceStats); err != nil {
+		logrus.WithError(err).Error("Failed to encode performance stats")
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	logrus.Debug("Performance endpoint accessed")
+}
+
 // checkDependencies checks the health of all dependencies
 func checkDependencies() map[string]DependencyStatus {
 	dependencies := make(map[string]DependencyStatus)
