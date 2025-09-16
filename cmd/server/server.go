@@ -131,8 +131,9 @@ func (s *Server) setupRoutes() {
 	s.setupMiddleware(r)
 
 	// Register routes
-	r.HandleFunc("/healthCheck", healthCheckHandler).Methods("GET")
-	r.HandleFunc("/bid", handlers.BidRequestHandler).Methods("POST")
+	r.HandleFunc("/health", handlers.HealthHandler).Methods("GET")
+	r.HandleFunc("/metrics", handlers.MetricsHandler).Methods("GET")
+	r.HandleFunc("/bid/request", handlers.BidRequestHandler).Methods("POST")
 	r.HandleFunc("/bid/test", handlers.BidRequestHandler).Methods("POST")
 
 	serverAddr := fmt.Sprintf("%s:%s", s.config.Server.Host, s.config.Server.Port)
