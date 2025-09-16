@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/hadarco13/mini-seller/internal/errors"
+	"github.com/hadarco13/mini-seller/internal/logging"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
@@ -29,6 +30,21 @@ type AppConfig struct {
 	Server      ServerConfig   `mapstructure:"server" yaml:"server"`
 	Database    DatabaseConfig `mapstructure:"database" yaml:"database"`
 	Debug       bool           `mapstructure:"debug" yaml:"debug"`
+	Buyers      []BuyerConfig  `mapstructure:"buyers" yaml:"buyers"`
+	Logging     LoggingConfig  `mapstructure:"logging" yaml:"logging"`
+}
+
+type LoggingConfig struct {
+	Level  string `mapstructure:"level" yaml:"level"`   // trace, debug, info, warn, error, fatal
+	Format string `mapstructure:"format" yaml:"format"` // json, text
+}
+
+type BuyerConfig struct {
+	Name      string  `mapstructure:"name" yaml:"name"`
+	Endpoint  string  `mapstructure:"endpoint" yaml:"endpoint"`
+	QPS       float64 `mapstructure:"qps" yaml:"qps"`
+	Burst     int     `mapstructure:"burst" yaml:"burst"`
+	TimeoutMs int     `mapstructure:"timeout_ms" yaml:"timeout_ms"`
 }
 
 var Config *AppConfig
@@ -75,8 +91,40 @@ func LoadConfig() error {
 		return err // validateConfig now returns proper AppError
 	}
 
+	// Configure logging based on config
+	configureLogging()
+
 	logrus.Infof("Configuration loaded successfully for environment: %s", Config.Environment)
 	return nil
+}
+
+// configureLogging sets up logging based on configuration
+func configureLogging() {
+	// Set defaults if not configured
+	if Config.Logging.Level == "" {
+		if Config.Debug {
+			Config.Logging.Level = "debug"
+		} else {
+			Config.Logging.Level = "info"
+		}
+	}
+
+	if Config.Logging.Format == "" {
+		if Config.Environment == "development" {
+			Config.Logging.Format = "text"
+		} else {
+			Config.Logging.Format = "json"
+		}
+	}
+
+	// Configure global logger
+	level := logging.GetLogLevelFromString(Config.Logging.Level)
+	logging.ConfigureGlobalLogger(level, Config.Logging.Format)
+
+	logrus.WithFields(logrus.Fields{
+		"level":  Config.Logging.Level,
+		"format": Config.Logging.Format,
+	}).Info("Logging configured")
 }
 
 func setDefaults() {

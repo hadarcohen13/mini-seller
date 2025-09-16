@@ -14,6 +14,7 @@ import (
 	"github.com/hadarco13/mini-seller/internal/errors"
 	"github.com/hadarco13/mini-seller/internal/handlers"
 	"github.com/hadarco13/mini-seller/internal/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 )
 
@@ -38,10 +39,14 @@ func NewServer() (*Server, error) {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
-	return &Server{
+	s := &Server{
 		config:  cfg,
 		signals: signals,
-	}, nil
+	}
+
+	s.setupRoutes()
+
+	return s, nil
 }
 
 // setupMiddleware applies all middleware to the router.
@@ -72,6 +77,7 @@ func (s *Server) Start() error {
 	r.HandleFunc("/healthCheck", healthCheckHandler).Methods("GET")
 
 	r.HandleFunc("/bid", handlers.BidRequestHandler).Methods("POST")
+	r.Handle("/metrics", promhttp.Handler()).Methods("GET")
 
 	serverAddr := fmt.Sprintf("%s:%s", s.config.Server.Host, s.config.Server.Port)
 	s.httpServer = &http.Server{
@@ -114,4 +120,24 @@ func (s *Server) Shutdown(ctx context.Context) error {
 		return nil
 	}
 	return s.httpServer.Shutdown(ctx)
+}
+
+// setupRoutes is now a method that correctly initializes the router and handlers
+func (s *Server) setupRoutes() {
+	r := mux.NewRouter()
+
+	// Apply all middleware *before* registering any handlers.
+	// The order here matters.
+	s.setupMiddleware(r)
+
+	// Register routes
+	r.HandleFunc("/healthCheck", healthCheckHandler).Methods("GET")
+	r.HandleFunc("/bid", handlers.BidRequestHandler).Methods("POST")
+	r.HandleFunc("/bid/test", handlers.BidRequestHandler).Methods("POST")
+
+	serverAddr := fmt.Sprintf("%s:%s", s.config.Server.Host, s.config.Server.Port)
+	s.httpServer = &http.Server{
+		Addr:    serverAddr,
+		Handler: r,
+	}
 }

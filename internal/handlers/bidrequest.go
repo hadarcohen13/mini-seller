@@ -9,19 +9,31 @@ import (
 
 	"github.com/bsm/openrtb"
 	"github.com/hadarco13/mini-seller/internal/errors"
+	"github.com/hadarco13/mini-seller/internal/logging"
 	"github.com/hadarco13/mini-seller/internal/middleware"
 	"github.com/sirupsen/logrus"
 )
 
 // BidRequestHandler handles incoming OpenRTB bid requests
 func BidRequestHandler(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
 	requestID := getRequestIDFromContext(r)
 
-	logrus.WithField("request_id", requestID).Info("Received bid request")
+	// Create structured logger for this request
+	logger := logging.NewLoggerFromContext(r.Context(), "bid_handler").
+		WithRequestID(requestID).
+		WithUserAgent(r.UserAgent()).
+		WithIPAddress(r.RemoteAddr)
+
+	logger.WithOperation("receive_bid_request").Info("Processing incoming bid request")
 
 	// Parse the bid request (this will detect and store the version)
 	bidRequest, version, err := parseBidRequestWithVersion(r)
 	if err != nil {
+		logger.WithOperation("parse_bid_request").
+			WithDuration(time.Since(start)).
+			WithError(err).
+			Error("Failed to parse bid request")
 		middleware.WriteErrorResponse(w, r, err)
 		return
 	}
@@ -30,16 +42,38 @@ func BidRequestHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := context.WithValue(r.Context(), "openrtb_version", version)
 	r = r.WithContext(ctx)
 
+	// Log successful parsing
+	logger.WithOperation("parse_bid_request").
+		WithBidRequestContext(bidRequest.ID, len(bidRequest.Imp)).
+		WithDuration(time.Since(start)).
+		Info("Bid request parsed successfully")
+
 	// Extract and log key fields
 	extractAndLogBidRequestFields(bidRequest, requestID, version)
 
 	// Generate bid response
+	responseStart := time.Now()
 	bidResponse := GenerateBidResponse(bidRequest, version, requestID)
+
+	// Log bid response generation
+	bidCount := 0
+	totalPrice := 0.0
+	for _, seatBid := range bidResponse.SeatBid {
+		bidCount += len(seatBid.Bid)
+		for _, bid := range seatBid.Bid {
+			totalPrice += bid.Price
+		}
+	}
+
+	logger.InfoBidResponse(bidRequest.ID, bidCount, totalPrice, time.Since(responseStart))
 
 	// Return OpenRTB bid response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(bidResponse)
+
+	// Log complete request processing
+	logger.InfoRequest(r.Method, r.URL.Path, http.StatusOK, time.Since(start))
 }
 
 // parseBidRequestWithVersion parses and validates the incoming bid request JSON, returning the detected version
