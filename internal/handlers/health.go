@@ -1,20 +1,32 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"runtime"
+	"time"
 
 	"github.com/hadarco13/mini-seller/internal/metrics"
+	"github.com/hadarco13/mini-seller/internal/redis"
 	"github.com/sirupsen/logrus"
 )
 
 // HealthStatus represents the application health status
 type HealthStatus struct {
-	Status         string               `json:"status"`
-	GoroutineStats GoroutineHealthStats `json:"goroutine_stats"`
-	RequestStats   map[string]int64     `json:"request_stats"`
-	Warnings       []string             `json:"warnings,omitempty"`
+	Status         string                      `json:"status"`
+	GoroutineStats GoroutineHealthStats        `json:"goroutine_stats"`
+	RequestStats   map[string]int64            `json:"request_stats"`
+	Dependencies   map[string]DependencyStatus `json:"dependencies"`
+	Warnings       []string                    `json:"warnings,omitempty"`
+}
+
+// DependencyStatus represents the status of a dependency
+type DependencyStatus struct {
+	Status       string        `json:"status"`
+	ResponseTime time.Duration `json:"response_time_ms"`
+	Error        string        `json:"error,omitempty"`
+	LastChecked  time.Time     `json:"last_checked"`
 }
 
 // GoroutineHealthStats represents goroutine health metrics
@@ -66,6 +78,22 @@ func HealthHandler(w http.ResponseWriter, r *http.Request) {
 func checkApplicationHealth() HealthStatus {
 	var warnings []string
 	status := "healthy"
+
+	// Check dependencies
+	dependencies := checkDependencies()
+
+	// Check if any dependencies are unhealthy
+	for depName, depStatus := range dependencies {
+		if depStatus.Status == "unhealthy" {
+			status = "critical"
+			warnings = append(warnings, depName+" dependency is unhealthy")
+		} else if depStatus.Status == "degraded" {
+			if status == "healthy" {
+				status = "warning"
+			}
+			warnings = append(warnings, depName+" dependency is degraded")
+		}
+	}
 
 	// Get goroutine stats
 	totalGoroutines := runtime.NumGoroutine()
@@ -121,6 +149,7 @@ func checkApplicationHealth() HealthStatus {
 		Status:         status,
 		GoroutineStats: goroutineStats,
 		RequestStats:   requestStats,
+		Dependencies:   dependencies,
 		Warnings:       warnings,
 	}
 }
@@ -185,4 +214,57 @@ func MetricsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logrus.Debug("Metrics endpoint accessed")
+}
+
+// checkDependencies checks the health of all dependencies
+func checkDependencies() map[string]DependencyStatus {
+	dependencies := make(map[string]DependencyStatus)
+
+	// Check Redis
+	dependencies["redis"] = checkRedisHealth()
+
+	return dependencies
+}
+
+// checkRedisHealth checks Redis connection health
+func checkRedisHealth() DependencyStatus {
+	start := time.Now()
+	status := DependencyStatus{
+		LastChecked: start,
+	}
+
+	// Get Redis client
+	client := redis.GetClient()
+	if client == nil {
+		status.Status = "unhealthy"
+		status.Error = "Redis client not initialized"
+		status.ResponseTime = time.Since(start)
+		return status
+	}
+
+	// Test Redis connection with ping
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := client.Ping(ctx).Result()
+	status.ResponseTime = time.Since(start)
+
+	if err != nil {
+		if status.ResponseTime > 2*time.Second {
+			status.Status = "degraded"
+			status.Error = "Redis response time too slow: " + err.Error()
+		} else {
+			status.Status = "unhealthy"
+			status.Error = "Redis ping failed: " + err.Error()
+		}
+	} else {
+		if status.ResponseTime > 1*time.Second {
+			status.Status = "degraded"
+			status.Error = "Redis response time slow"
+		} else {
+			status.Status = "healthy"
+		}
+	}
+
+	return status
 }
