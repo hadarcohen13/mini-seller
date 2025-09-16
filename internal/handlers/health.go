@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"runtime"
 
+	"github.com/hadarco13/mini-seller/internal/metrics"
 	"github.com/sirupsen/logrus"
 )
 
@@ -170,4 +171,18 @@ func ForceGCHandler(w http.ResponseWriter, r *http.Request) {
 		"after_goroutines":  afterGoroutines,
 		"freed_mb":          result["freed_mb"],
 	}).Info("Forced garbage collection completed")
+}
+
+// MetricsHandler provides application metrics endpoint
+func MetricsHandler(w http.ResponseWriter, r *http.Request) {
+	stats := metrics.GetGlobalStats()
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(stats); err != nil {
+		logrus.WithError(err).Error("Failed to encode metrics")
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	logrus.Debug("Metrics endpoint accessed")
 }

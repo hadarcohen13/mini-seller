@@ -11,6 +11,7 @@ import (
 	"github.com/bsm/openrtb"
 	"github.com/hadarco13/mini-seller/internal/errors"
 	"github.com/hadarco13/mini-seller/internal/logging"
+	"github.com/hadarco13/mini-seller/internal/metrics"
 	"github.com/hadarco13/mini-seller/internal/middleware"
 	"github.com/sirupsen/logrus"
 )
@@ -35,7 +36,11 @@ func BidRequestHandler(w http.ResponseWriter, r *http.Request) {
 	requestsMutex.Unlock()
 
 	defer func() {
+		duration := time.Since(start)
+		hasError := false
+
 		if r := recover(); r != nil {
+			hasError = true
 			logrus.WithFields(logrus.Fields{
 				"request_id": requestID,
 				"panic":      r,
@@ -52,6 +57,9 @@ func BidRequestHandler(w http.ResponseWriter, r *http.Request) {
 			activeRequests--
 			requestsMutex.Unlock()
 		}
+
+		// Record metrics
+		metrics.RecordRequest(duration, hasError)
 	}()
 
 	// Create structured logger for this request
@@ -65,13 +73,18 @@ func BidRequestHandler(w http.ResponseWriter, r *http.Request) {
 	// Parse the bid request (this will detect and store the version)
 	bidRequest, version, err := parseBidRequestWithVersion(r)
 	if err != nil {
+		duration := time.Since(start)
 		logger.WithOperation("parse_bid_request").
-			WithDuration(time.Since(start)).
+			WithDuration(duration).
 			WithError(err).
 			Error("Failed to parse bid request")
+
 		requestsMutex.Lock()
 		failedRequests++
 		requestsMutex.Unlock()
+
+		// Record metrics for parsing error
+		metrics.RecordRequest(duration, true)
 
 		middleware.WriteErrorResponse(w, r, err)
 		return
