@@ -29,6 +29,7 @@ type AppConfig struct {
 	Environment string         `mapstructure:"environment" yaml:"environment"`
 	Server      ServerConfig   `mapstructure:"server" yaml:"server"`
 	Database    DatabaseConfig `mapstructure:"database" yaml:"database"`
+	Redis       RedisConfig    `mapstructure:"redis" yaml:"redis"`
 	Debug       bool           `mapstructure:"debug" yaml:"debug"`
 	Buyers      []BuyerConfig  `mapstructure:"buyers" yaml:"buyers"`
 	Logging     LoggingConfig  `mapstructure:"logging" yaml:"logging"`
@@ -37,6 +38,13 @@ type AppConfig struct {
 type LoggingConfig struct {
 	Level  string `mapstructure:"level" yaml:"level"`   // trace, debug, info, warn, error, fatal
 	Format string `mapstructure:"format" yaml:"format"` // json, text
+}
+
+type RedisConfig struct {
+	Host     string `mapstructure:"host" yaml:"host"`
+	Port     string `mapstructure:"port" yaml:"port"`
+	Password string `mapstructure:"password" yaml:"password"`
+	DB       int    `mapstructure:"db" yaml:"db"`
 }
 
 type BuyerConfig struct {
@@ -137,6 +145,10 @@ func setDefaults() {
 	viper.SetDefault("database.user", "postgres")
 	viper.SetDefault("database.name", "mini_seller")
 	viper.SetDefault("database.ssl_mode", "disable")
+	viper.SetDefault("redis.host", "localhost")
+	viper.SetDefault("redis.port", "6379")
+	viper.SetDefault("redis.password", "")
+	viper.SetDefault("redis.db", 0)
 	viper.SetDefault("debug", false)
 }
 
