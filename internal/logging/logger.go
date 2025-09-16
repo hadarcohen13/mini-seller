@@ -2,6 +2,7 @@ package logging
 
 import (
 	"context"
+	"os"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -251,4 +252,49 @@ func GetLogLevelFromString(levelStr string) logrus.Level {
 	default:
 		return logrus.InfoLevel
 	}
+}
+
+// SetupLogging configures logging from environment variables
+func SetupLogging() {
+	// Get log level from environment (defaults to INFO)
+	levelStr := os.Getenv("LOG_LEVEL")
+	if levelStr == "" {
+		levelStr = "info"
+	}
+	level := GetLogLevelFromString(levelStr)
+
+	// Get log format from environment (defaults to JSON)
+	format := os.Getenv("LOG_FORMAT")
+	if format == "" {
+		format = "json"
+	}
+
+	// Configure global logger
+	ConfigureGlobalLogger(level, format)
+
+	logrus.WithFields(logrus.Fields{
+		"level":  level.String(),
+		"format": format,
+	}).Info("Logging configured")
+}
+
+// LogWithLevel logs a message at the specified level
+func (l *Logger) LogWithLevel(level logrus.Level, msg string) {
+	switch level {
+	case logrus.DebugLevel:
+		l.Debug(msg)
+	case logrus.InfoLevel:
+		l.Info(msg)
+	case logrus.WarnLevel:
+		l.Warn(msg)
+	case logrus.ErrorLevel:
+		l.Error(msg)
+	default:
+		l.Info(msg)
+	}
+}
+
+// IsLevelEnabled checks if a log level is enabled
+func IsLevelEnabled(level logrus.Level) bool {
+	return logrus.IsLevelEnabled(level)
 }
