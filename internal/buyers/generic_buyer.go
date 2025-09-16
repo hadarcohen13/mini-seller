@@ -327,3 +327,8 @@ func (c *BuyerClient) logBidResponseDetails(logEntry *logrus.Entry, bidResponse 
 		"seat_bids":       seatBidDetails,
 	}).Info("Received detailed bid response from buyer")
 }
+
+// GetEndpoint returns the buyer's endpoint URL
+func (c *BuyerClient) GetEndpoint() string {
+	return c.endpoint
+}

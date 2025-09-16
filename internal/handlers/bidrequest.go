@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/bsm/openrtb"
@@ -14,10 +15,44 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// BidRequestHandler handles incoming OpenRTB bid requests
+var (
+	// Thread-safe counters for tracking concurrent requests
+	activeRequests int64
+	totalRequests  int64
+	failedRequests int64
+	requestsMutex  sync.RWMutex
+)
+
+// BidRequestHandler handles incoming OpenRTB bid requests with thread-safe tracking
 func BidRequestHandler(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	requestID := getRequestIDFromContext(r)
+
+	// Thread-safe request tracking
+	requestsMutex.Lock()
+	activeRequests++
+	totalRequests++
+	requestsMutex.Unlock()
+
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.WithFields(logrus.Fields{
+				"request_id": requestID,
+				"panic":      r,
+			}).Error("Bid request handler panicked")
+
+			requestsMutex.Lock()
+			activeRequests--
+			failedRequests++
+			requestsMutex.Unlock()
+
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+		} else {
+			requestsMutex.Lock()
+			activeRequests--
+			requestsMutex.Unlock()
+		}
+	}()
 
 	// Create structured logger for this request
 	logger := logging.NewLoggerFromContext(r.Context(), "bid_handler").
@@ -34,6 +69,10 @@ func BidRequestHandler(w http.ResponseWriter, r *http.Request) {
 			WithDuration(time.Since(start)).
 			WithError(err).
 			Error("Failed to parse bid request")
+		requestsMutex.Lock()
+		failedRequests++
+		requestsMutex.Unlock()
+
 		middleware.WriteErrorResponse(w, r, err)
 		return
 	}
@@ -377,4 +416,25 @@ func getRequestIDFromContext(r *http.Request) string {
 		}
 	}
 	return "unknown"
+}
+
+// GetRequestStats returns thread-safe request statistics
+func GetRequestStats() map[string]int64 {
+	requestsMutex.RLock()
+	defer requestsMutex.RUnlock()
+
+	return map[string]int64{
+		"active_requests": activeRequests,
+		"total_requests":  totalRequests,
+		"failed_requests": failedRequests,
+		"success_rate":    (totalRequests - failedRequests) * 100 / max(totalRequests, 1),
+	}
+}
+
+// max helper function
+func max(a, b int64) int64 {
+	if a > b {
+		return a
+	}
+	return b
 }
