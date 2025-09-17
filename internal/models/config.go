@@ -44,7 +44,7 @@ func PrepareEnv() error {
 	viper.SetConfigFile(getEnvFilePath())
 
 	if err := viper.ReadInConfig(); err != nil {
-		log.Fatal("Failed to load env file: %v", err)
+		log.Fatalf("Failed to load env file: %v", err)
 		return err
 	}
 

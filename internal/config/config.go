@@ -28,14 +28,21 @@ type RateLimitConfig struct {
 	Burst int     `mapstructure:"burst" yaml:"burst"`
 }
 
+type RateLimitingConfig struct {
+	RequestsPerSecond float64 `mapstructure:"requests_per_second" yaml:"requests_per_second"`
+	BurstSize         int     `mapstructure:"burst_size" yaml:"burst_size"`
+}
+
 type AppConfig struct {
-	Environment string          `mapstructure:"environment" yaml:"environment"`
-	Server      ServerConfig    `mapstructure:"server" yaml:"server"`
-	Redis       RedisConfig     `mapstructure:"redis" yaml:"redis"`
-	Debug       bool            `mapstructure:"debug" yaml:"debug"`
-	Buyers      []BuyerConfig   `mapstructure:"buyers" yaml:"buyers"`
-	Logging     LoggingConfig   `mapstructure:"logging" yaml:"logging"`
-	RateLimit   RateLimitConfig `mapstructure:"rate_limit" yaml:"rate_limit"`
+	Environment  string             `mapstructure:"environment" yaml:"environment"`
+	Server       ServerConfig       `mapstructure:"server" yaml:"server"`
+	Redis        RedisConfig        `mapstructure:"redis" yaml:"redis"`
+	Debug        bool               `mapstructure:"debug" yaml:"debug"`
+	Buyers       []BuyerConfig      `mapstructure:"buyers" yaml:"buyers"`
+	Logging      LoggingConfig      `mapstructure:"logging" yaml:"logging"`
+	RateLimit    RateLimitConfig    `mapstructure:"rate_limit" yaml:"rate_limit"`
+	RateLimiting RateLimitingConfig `mapstructure:"rate_limiting" yaml:"rate_limiting"`
+	Buyer        BuyerConfig        `mapstructure:"buyer" yaml:"buyer"`
 }
 
 type LoggingConfig struct {
@@ -44,10 +51,14 @@ type LoggingConfig struct {
 }
 
 type RedisConfig struct {
-	Host     string `mapstructure:"host" yaml:"host"`
-	Port     string `mapstructure:"port" yaml:"port"`
-	Password string `mapstructure:"password" yaml:"password"`
-	DB       int    `mapstructure:"db" yaml:"db"`
+	Host           string `mapstructure:"host" yaml:"host"`
+	Port           string `mapstructure:"port" yaml:"port"`
+	Password       string `mapstructure:"password" yaml:"password"`
+	DB             int    `mapstructure:"db" yaml:"db"`
+	PoolSize       int    `mapstructure:"pool_size" yaml:"pool_size"`
+	DialTimeoutMs  int    `mapstructure:"dial_timeout_ms" yaml:"dial_timeout_ms"`
+	ReadTimeoutMs  int    `mapstructure:"read_timeout_ms" yaml:"read_timeout_ms"`
+	WriteTimeoutMs int    `mapstructure:"write_timeout_ms" yaml:"write_timeout_ms"`
 }
 
 type BuyerConfig struct {
@@ -80,6 +91,9 @@ func LoadConfig() error {
 	viper.BindEnv("server.port", "MINI_SELLER_SERVER_PORT")
 	viper.BindEnv("server.host", "MINI_SELLER_SERVER_HOST")
 	viper.BindEnv("environment", "MINI_SELLER_ENVIRONMENT")
+	viper.BindEnv("redis.host", "MINI_SELLER_REDIS_HOST")
+	viper.BindEnv("redis.port", "MINI_SELLER_REDIS_PORT")
+	viper.BindEnv("redis.db", "MINI_SELLER_REDIS_DB")
 
 	setDefaults()
 
@@ -164,6 +178,15 @@ func setDefaults() {
 	viper.SetDefault("logging.format", "json")
 	viper.SetDefault("rate_limit.qps", 10.0)
 	viper.SetDefault("rate_limit.burst", 20)
+	viper.SetDefault("rate_limiting.requests_per_second", 10.0)
+	viper.SetDefault("rate_limiting.burst_size", 20)
+	viper.SetDefault("buyer.qps", 5.0)
+	viper.SetDefault("buyer.burst", 10)
+	viper.SetDefault("buyer.timeout_ms", 1000)
+	viper.SetDefault("redis.pool_size", 10)
+	viper.SetDefault("redis.dial_timeout_ms", 5000)
+	viper.SetDefault("redis.read_timeout_ms", 3000)
+	viper.SetDefault("redis.write_timeout_ms", 3000)
 }
 
 func validateConfig() error {
@@ -200,10 +223,12 @@ func validateConfig() error {
 }
 
 func GetConfig() *AppConfig {
-	if Config == nil {
-		logrus.Fatal("Config not loaded. Call LoadConfig() first.")
-	}
 	return Config
+}
+
+// ResetConfig resets the global config (for testing)
+func ResetConfig() {
+	Config = nil
 }
 
 func IsDevelopment() bool {

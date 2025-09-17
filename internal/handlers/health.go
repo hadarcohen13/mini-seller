@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/hadarco13/mini-seller/internal/config"
 	"github.com/hadarco13/mini-seller/internal/metrics"
 	"github.com/hadarco13/mini-seller/internal/redis"
 	"github.com/sirupsen/logrus"

@@ -54,3 +54,8 @@ func Close() error {
 func GetClient() *redis.Client {
 	return Client
 }
+
+// SetTestClient sets a test Redis client for testing purposes
+func SetTestClient(testClient *redis.Client) {
+	Client = testClient
+}
