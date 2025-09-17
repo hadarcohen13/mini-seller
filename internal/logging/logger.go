@@ -226,6 +226,24 @@ func ConfigureGlobalLogger(level logrus.Level, format string) {
 			FullTimestamp:   true,
 			TimestampFormat: time.RFC3339,
 		})
+	case "text-color":
+		logrus.SetFormatter(&logrus.TextFormatter{
+			FullTimestamp:   true,
+			TimestampFormat: time.RFC3339,
+			ForceColors:     true,
+		})
+	case "compact":
+		logrus.SetFormatter(&logrus.TextFormatter{
+			DisableTimestamp:       false,
+			FullTimestamp:          true,
+			TimestampFormat:        "15:04:05",
+			DisableLevelTruncation: true,
+		})
+	case "minimal":
+		logrus.SetFormatter(&logrus.TextFormatter{
+			DisableTimestamp:       true,
+			DisableLevelTruncation: true,
+		})
 	default:
 		// Default to JSON for production
 		logrus.SetFormatter(&logrus.JSONFormatter{

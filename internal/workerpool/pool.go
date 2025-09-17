@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hadarco13/mini-seller/internal/config"
 	"github.com/hadarco13/mini-seller/internal/monitoring"
 	"github.com/sirupsen/logrus"
 )
@@ -99,7 +100,7 @@ func (wp *WorkerPool) Stop() {
 	select {
 	case <-done:
 		logrus.Info("All workers stopped gracefully")
-	case <-time.After(30 * time.Second):
+	case <-time.After(time.Duration(config.GetConfig().Server.WorkerStopTimeoutMs) * time.Millisecond):
 		logrus.Warn("Worker pool stop timeout - some workers may not have stopped")
 	}
 

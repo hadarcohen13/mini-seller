@@ -12,9 +12,15 @@ import (
 )
 
 type ServerConfig struct {
-	Port     string `mapstructure:"port" yaml:"port"`
-	Host     string `mapstructure:"host" yaml:"host"`
-	LogLevel string `mapstructure:"log_level" yaml:"log_level"`
+	Port                 string `mapstructure:"port" yaml:"port"`
+	Host                 string `mapstructure:"host" yaml:"host"`
+	LogLevel             string `mapstructure:"log_level" yaml:"log_level"`
+	ReadTimeoutMs        int    `mapstructure:"read_timeout_ms" yaml:"read_timeout_ms"`
+	WriteTimeoutMs       int    `mapstructure:"write_timeout_ms" yaml:"write_timeout_ms"`
+	ShutdownTimeoutMs    int    `mapstructure:"shutdown_timeout_ms" yaml:"shutdown_timeout_ms"`
+	HealthCheckTimeoutMs int    `mapstructure:"health_check_timeout_ms" yaml:"health_check_timeout_ms"`
+	IdleConnTimeoutMs    int    `mapstructure:"idle_conn_timeout_ms" yaml:"idle_conn_timeout_ms"`
+	WorkerStopTimeoutMs  int    `mapstructure:"worker_stop_timeout_ms" yaml:"worker_stop_timeout_ms"`
 }
 
 type RateLimitConfig struct {
@@ -143,6 +149,12 @@ func setDefaults() {
 	viper.SetDefault("server.port", "8080")
 	viper.SetDefault("server.host", "localhost")
 	viper.SetDefault("server.log_level", "info")
+	viper.SetDefault("server.read_timeout_ms", 5000)
+	viper.SetDefault("server.write_timeout_ms", 10000)
+	viper.SetDefault("server.shutdown_timeout_ms", 30000)
+	viper.SetDefault("server.health_check_timeout_ms", 5000)
+	viper.SetDefault("server.idle_conn_timeout_ms", 90000)
+	viper.SetDefault("server.worker_stop_timeout_ms", 5000)
 	viper.SetDefault("redis.host", "localhost")
 	viper.SetDefault("redis.port", "6379")
 	viper.SetDefault("redis.password", "")

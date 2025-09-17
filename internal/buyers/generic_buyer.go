@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/bsm/openrtb"
+	"github.com/hadarco13/mini-seller/internal/config"
 	"github.com/hadarco13/mini-seller/internal/metrics"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
@@ -25,7 +26,7 @@ func NewBuyerClient(endpoint string, qps float64, burst int, timeout time.Durati
 	transport := &http.Transport{
 		MaxIdleConns:        100,
 		MaxIdleConnsPerHost: 20,
-		IdleConnTimeout:     90 * time.Second,
+		IdleConnTimeout:     time.Duration(config.GetConfig().Server.IdleConnTimeoutMs) * time.Millisecond,
 	}
 
 	httpClient := &http.Client{

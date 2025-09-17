@@ -5,6 +5,12 @@ server:
   port: "8080"
   host: "0.0.0.0"
   log_level: "info"
+  read_timeout_ms: 3000
+  write_timeout_ms: 5000
+  shutdown_timeout_ms: 60000
+  health_check_timeout_ms: 3000
+  idle_conn_timeout_ms: 120000
+  worker_stop_timeout_ms: 10000
 
 redis:
   host: "${REDIS_HOST:-localhost}"

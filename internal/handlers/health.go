@@ -257,7 +257,9 @@ func checkRedisHealth() DependencyStatus {
 	}
 
 	// Test Redis connection with ping
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	cfg := config.GetConfig()
+	timeout := time.Duration(cfg.Server.HealthCheckTimeoutMs) * time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	_, err := client.Ping(ctx).Result()

@@ -83,8 +83,10 @@ func (s *Server) Start() error {
 
 	serverAddr := fmt.Sprintf("%s:%s", s.config.Server.Host, s.config.Server.Port)
 	s.httpServer = &http.Server{
-		Addr:    serverAddr,
-		Handler: r,
+		Addr:         serverAddr,
+		Handler:      r,
+		ReadTimeout:  time.Duration(s.config.Server.ReadTimeoutMs) * time.Millisecond,
+		WriteTimeout: time.Duration(s.config.Server.WriteTimeoutMs) * time.Millisecond,
 	}
 
 	logrus.WithFields(logrus.Fields{
@@ -104,7 +106,8 @@ func (s *Server) Start() error {
 	logrus.Info("Shutdown signal received, starting graceful shutdown...")
 
 	// Create shutdown context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	shutdownTimeout := time.Duration(s.config.Server.ShutdownTimeoutMs) * time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 
 	// Shutdown server
@@ -140,7 +143,9 @@ func (s *Server) setupRoutes() {
 
 	serverAddr := fmt.Sprintf("%s:%s", s.config.Server.Host, s.config.Server.Port)
 	s.httpServer = &http.Server{
-		Addr:    serverAddr,
-		Handler: r,
+		Addr:         serverAddr,
+		Handler:      r,
+		ReadTimeout:  time.Duration(s.config.Server.ReadTimeoutMs) * time.Millisecond,
+		WriteTimeout: time.Duration(s.config.Server.WriteTimeoutMs) * time.Millisecond,
 	}
 }
