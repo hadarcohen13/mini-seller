@@ -1,0 +1,7 @@
+services:
+  mini-seller:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - MINI_SELLER_REDIS_HOST=localhost
