@@ -19,6 +19,7 @@ func GenerateBidResponse(bidRequest *openrtb.BidRequest, version string, request
 	// Create bid response
 	bidResponse := &openrtb.BidResponse{
 		ID:       bidRequest.ID,
+		BidID:    fmt.Sprintf("bidresp-%s-%d", bidRequest.ID, time.Now().Unix()),
 		Currency: "USD",
 		SeatBid:  []openrtb.SeatBid{},
 	}
@@ -69,6 +70,35 @@ func generateSimpleBid(imp *openrtb.Impression, requestID string) openrtb.Bid {
 			int(imp.Banner.W), int(imp.Banner.H), int(imp.Banner.H))
 		bid.W = int(imp.Banner.W)
 		bid.H = int(imp.Banner.H)
+	} else if imp.Video != nil {
+		// Generate simple VAST XML for video ads
+		bid.AdMarkup = fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<VAST version="2.0">
+  <Ad id="mini-seller-video-ad">
+    <InLine>
+      <AdSystem>Mini Seller</AdSystem>
+      <AdTitle>Mini Seller Video Ad</AdTitle>
+      <Impression><![CDATA[http://mini-seller.com/impression]]></Impression>
+      <Creatives>
+        <Creative>
+          <Linear>
+            <Duration>00:00:%02d</Duration>
+            <VideoClicks>
+              <ClickThrough><![CDATA[http://mini-seller.com]]></ClickThrough>
+            </VideoClicks>
+            <MediaFiles>
+              <MediaFile delivery="progressive" type="video/mp4" bitrate="500" width="%d" height="%d">
+                <![CDATA[http://mini-seller.com/video.mp4]]>
+              </MediaFile>
+            </MediaFiles>
+          </Linear>
+        </Creative>
+      </Creatives>
+    </InLine>
+  </Ad>
+</VAST>`, imp.Video.MaxDuration, int(imp.Video.W), int(imp.Video.H))
+		bid.W = int(imp.Video.W)
+		bid.H = int(imp.Video.H)
 	}
 
 	return bid
