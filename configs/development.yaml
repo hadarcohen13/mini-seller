@@ -16,6 +16,10 @@ logging:
   level: "debug"
   format: "text"
 
+rate_limit:
+  qps: 10.0
+  burst: 20
+
 buyers:
   - name: "buyer1"
     endpoint: "http://buyer1.local/bid"

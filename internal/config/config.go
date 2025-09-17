@@ -17,13 +17,19 @@ type ServerConfig struct {
 	LogLevel string `mapstructure:"log_level" yaml:"log_level"`
 }
 
+type RateLimitConfig struct {
+	QPS   float64 `mapstructure:"qps" yaml:"qps"`
+	Burst int     `mapstructure:"burst" yaml:"burst"`
+}
+
 type AppConfig struct {
-	Environment string        `mapstructure:"environment" yaml:"environment"`
-	Server      ServerConfig  `mapstructure:"server" yaml:"server"`
-	Redis       RedisConfig   `mapstructure:"redis" yaml:"redis"`
-	Debug       bool          `mapstructure:"debug" yaml:"debug"`
-	Buyers      []BuyerConfig `mapstructure:"buyers" yaml:"buyers"`
-	Logging     LoggingConfig `mapstructure:"logging" yaml:"logging"`
+	Environment string          `mapstructure:"environment" yaml:"environment"`
+	Server      ServerConfig    `mapstructure:"server" yaml:"server"`
+	Redis       RedisConfig     `mapstructure:"redis" yaml:"redis"`
+	Debug       bool            `mapstructure:"debug" yaml:"debug"`
+	Buyers      []BuyerConfig   `mapstructure:"buyers" yaml:"buyers"`
+	Logging     LoggingConfig   `mapstructure:"logging" yaml:"logging"`
+	RateLimit   RateLimitConfig `mapstructure:"rate_limit" yaml:"rate_limit"`
 }
 
 type LoggingConfig struct {
@@ -144,6 +150,8 @@ func setDefaults() {
 	viper.SetDefault("debug", false)
 	viper.SetDefault("logging.level", "info")
 	viper.SetDefault("logging.format", "json")
+	viper.SetDefault("rate_limit.qps", 10.0)
+	viper.SetDefault("rate_limit.burst", 20)
 }
 
 func validateConfig() error {

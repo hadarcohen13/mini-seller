@@ -60,11 +60,11 @@ func (s *Server) setupMiddleware(r *mux.Router) {
 	r.Use(middleware.LoggingMiddleware)
 
 	// Use config to apply rate limiting
-	rateLimit := 10.0 // 10 requests per second
-	burst := 20       // allow bursts of up to 20 requests
+	rateLimit := s.config.RateLimit.QPS
+	burst := s.config.RateLimit.Burst
 	if s.config.Debug {
-		rateLimit = 100.0
-		burst = 200
+		rateLimit = rateLimit * 10 // 10x higher in debug mode
+		burst = burst * 10
 	}
 	r.Use(middleware.RateLimiterMiddleware(rateLimit, burst))
 }

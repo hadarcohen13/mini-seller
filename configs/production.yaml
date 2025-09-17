@@ -16,6 +16,10 @@ logging:
   level: "info"
   format: "json"
 
+rate_limit:
+  qps: 50.0
+  burst: 100
+
 buyers:
   - name: "buyer1"
     endpoint: "${BUYER1_ENDPOINT}"
