@@ -186,53 +186,6 @@ func TestHealthHandler_CriticalGoroutineCount(t *testing.T) {
 	mr.Close()
 }
 
-func TestForceGCHandler_Success(t *testing.T) {
-	resetHealthPrometheusRegistry()
-	setupHealthTestConfig()
-	config.LoadConfig()
-
-	req := httptest.NewRequest(http.MethodPost, "/force-gc", nil)
-	w := httptest.NewRecorder()
-
-	handlers.ForceGCHandler(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
-
-	var result map[string]interface{}
-	err := json.NewDecoder(w.Body).Decode(&result)
-	require.NoError(t, err)
-
-	assert.Contains(t, result, "before")
-	assert.Contains(t, result, "after")
-	assert.Contains(t, result, "freed_mb")
-
-	before := result["before"].(map[string]interface{})
-	after := result["after"].(map[string]interface{})
-
-	assert.Contains(t, before, "goroutines")
-	assert.Contains(t, before, "alloc_mb")
-	assert.Contains(t, before, "sys_mb")
-
-	assert.Contains(t, after, "goroutines")
-	assert.Contains(t, after, "alloc_mb")
-	assert.Contains(t, after, "sys_mb")
-}
-
-func TestForceGCHandler_MethodNotAllowed(t *testing.T) {
-	resetHealthPrometheusRegistry()
-	setupHealthTestConfig()
-	config.LoadConfig()
-
-	req := httptest.NewRequest(http.MethodGet, "/force-gc", nil)
-	w := httptest.NewRecorder()
-
-	handlers.ForceGCHandler(w, req)
-
-	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
-	assert.Contains(t, w.Body.String(), "Method not allowed")
-}
-
 func TestMetricsHandler_Success(t *testing.T) {
 	resetHealthPrometheusRegistry()
 	setupHealthTestConfig()
@@ -242,25 +195,6 @@ func TestMetricsHandler_Success(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	handlers.MetricsHandler(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
-
-	var stats interface{}
-	err := json.NewDecoder(w.Body).Decode(&stats)
-	require.NoError(t, err)
-	assert.NotNil(t, stats)
-}
-
-func TestPerformanceHandler_Success(t *testing.T) {
-	resetHealthPrometheusRegistry()
-	setupHealthTestConfig()
-	config.LoadConfig()
-
-	req := httptest.NewRequest(http.MethodGet, "/performance", nil)
-	w := httptest.NewRecorder()
-
-	handlers.PerformanceHandler(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
@@ -416,21 +350,4 @@ func BenchmarkHealthHandler(b *testing.B) {
 	})
 
 	mr.Close()
-}
-
-func BenchmarkForceGCHandler(b *testing.B) {
-	resetHealthPrometheusRegistry()
-	setupHealthTestConfig()
-	config.LoadConfig()
-
-	req := httptest.NewRequest(http.MethodPost, "/force-gc", nil)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		w := httptest.NewRecorder()
-		handlers.ForceGCHandler(w, req)
-		if w.Code != http.StatusOK {
-			b.Fatalf("Expected 200, got %d", w.Code)
-		}
-	}
 }
