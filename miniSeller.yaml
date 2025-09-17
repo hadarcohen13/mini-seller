@@ -1,0 +1,619 @@
+openapi: 3.0.0
+info:
+  title: Mini Seller API
+  description: OpenRTB compliant mini seller application for real-time bidding
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Development server
+
+tags:
+  - name: Bidding
+    description: OpenRTB bid request and response operations
+  - name: Health
+    description: Health check and monitoring endpoints
+  - name: Metrics
+    description: Application metrics and performance monitoring
+
+paths:
+  /bid/request:
+    post:
+      tags:
+        - Bidding
+      summary: Process OpenRTB bid request
+      description: Processes incoming OpenRTB bid requests and returns appropriate bid responses
+      parameters:
+        - name: X-OpenRTB-Version
+          in: header
+          description: OpenRTB version (2.0-2.6)
+          required: false
+          schema:
+            type: string
+            default: "2.5"
+            enum: ["2.0", "2.1", "2.2", "2.3", "2.4", "2.5", "2.6"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  description: Unique bid request ID
+                  example: "1234567890"
+                imp:
+                  type: array
+                  description: Array of impression objects
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: "1"
+                      banner:
+                        type: object
+                        properties:
+                          w:
+                            type: integer
+                            example: 300
+                          h:
+                            type: integer
+                            example: 250
+                          pos:
+                            type: integer
+                            example: 0
+                          mimes:
+                            type: array
+                            items:
+                              type: string
+                            example: ["image/gif", "image/jpeg", "image/png"]
+                      video:
+                        type: object
+                        properties:
+                          w:
+                            type: integer
+                            example: 640
+                          h:
+                            type: integer
+                            example: 480
+                          mimes:
+                            type: array
+                            items:
+                              type: string
+                            example: ["video/mp4", "video/webm"]
+                          minduration:
+                            type: integer
+                            example: 5
+                          maxduration:
+                            type: integer
+                            example: 30
+                      bidfloor:
+                        type: number
+                        format: float
+                        example: 0.03
+                      bidfloorcur:
+                        type: string
+                        example: "USD"
+                      secure:
+                        type: integer
+                        example: 1
+                site:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      example: "site123"
+                    name:
+                      type: string
+                      example: "Example Site"
+                    domain:
+                      type: string
+                      example: "example.com"
+                    page:
+                      type: string
+                      example: "http://example.com/page"
+                device:
+                  type: object
+                  properties:
+                    ua:
+                      type: string
+                      example: "Mozilla/5.0..."
+                    ip:
+                      type: string
+                      example: "192.168.1.1"
+                    devicetype:
+                      type: integer
+                      example: 2
+                    make:
+                      type: string
+                      example: "Apple"
+                    model:
+                      type: string
+                      example: "iPhone"
+                user:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      example: "user123"
+                    buyeruid:
+                      type: string
+                      example: "buyer456"
+                at:
+                  type: integer
+                  description: Auction type
+                  example: 1
+                tmax:
+                  type: integer
+                  description: Maximum time in milliseconds
+                  example: 120
+                cur:
+                  type: array
+                  description: Allowed currencies
+                  items:
+                    type: string
+                  example: ["USD"]
+            examples:
+              banner_request:
+                summary: Banner bid request
+                value:
+                  id: "1234567890"
+                  imp:
+                    - id: "1"
+                      banner:
+                        w: 300
+                        h: 250
+                        pos: 0
+                        mimes: ["image/gif", "image/jpeg", "image/png"]
+                      bidfloor: 0.03
+                      bidfloorcur: "USD"
+                      secure: 1
+                  site:
+                    id: "site123"
+                    name: "Example Site"
+                    domain: "example.com"
+                    page: "http://example.com/page"
+                  device:
+                    ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+                    ip: "192.168.1.1"
+                    devicetype: 2
+                    make: "Dell"
+                    model: "OptiPlex"
+                  user:
+                    id: "user123"
+                    buyeruid: "buyer456"
+                  at: 1
+                  tmax: 120
+                  cur: ["USD"]
+              video_request:
+                summary: Video bid request
+                value:
+                  id: "video-request-789"
+                  imp:
+                    - id: "1"
+                      video:
+                        mimes: ["video/mp4", "video/webm"]
+                        minduration: 5
+                        maxduration: 30
+                        w: 640
+                        h: 480
+                      bidfloor: 0.50
+                      bidfloorcur: "USD"
+                      secure: 1
+                  device:
+                    ua: "ExampleApp/2.1.0 (iPhone; iOS 15.0)"
+                    ip: "10.0.0.1"
+                    devicetype: 1
+                    make: "Apple"
+                    model: "iPhone13,2"
+                  at: 1
+                  tmax: 100
+                  cur: ["USD"]
+      responses:
+        '200':
+          description: Successful bid response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    example: "1234567890"
+                  seatbid:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        bid:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                                example: "bid-12345"
+                              impid:
+                                type: string
+                                example: "1"
+                              price:
+                                type: number
+                                format: float
+                                example: 1.25
+                              adm:
+                                type: string
+                                description: Ad markup
+                                example: "<html><body>Ad Content</body></html>"
+                              adomain:
+                                type: array
+                                items:
+                                  type: string
+                                example: ["example-advertiser.com"]
+                              w:
+                                type: integer
+                                example: 300
+                              h:
+                                type: integer
+                                example: 250
+                        seat:
+                          type: string
+                          example: "seat1"
+                  bidid:
+                    type: string
+                    example: "bidresp-1234567890-1647875400"
+                  cur:
+                    type: string
+                    example: "USD"
+              examples:
+                banner_response:
+                  summary: Banner bid response
+                  value:
+                    id: "1234567890"
+                    seatbid:
+                      - bid:
+                          - id: "bid-12345"
+                            impid: "1"
+                            price: 1.25
+                            adm: "<html><body><a href='http://example-advertiser.com'><img src='http://example-dsp.com/creative/456.jpg' width='300' height='250' alt='Ad'></a></body></html>"
+                            adomain: ["example-advertiser.com"]
+                            w: 300
+                            h: 250
+                        seat: "seat1"
+                    bidid: "bidresp-1234567890-1647875400"
+                    cur: "USD"
+                video_response:
+                  summary: Video bid response
+                  value:
+                    id: "video-request-789"
+                    seatbid:
+                      - bid:
+                          - id: "video-bid-789"
+                            impid: "1"
+                            price: 3.75
+                            adm: "<VAST version=\"3.0\"><Ad><InLine><AdTitle>Example Video Ad</AdTitle></InLine></Ad></VAST>"
+                            adomain: ["video-advertiser.com"]
+                            w: 640
+                            h: 480
+                        seat: "video-seat1"
+                    bidid: "bidresp-video-request-789-1647875500"
+                    cur: "USD"
+        '204':
+          description: No bid
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "VALIDATION_ERROR"
+                  message:
+                    type: string
+                    example: "Bid request ID is required"
+                  code:
+                    type: integer
+                    example: 400
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "UNSUPPORTED_OPENRTB_VERSION"
+                  message:
+                    type: string
+                    example: "Unsupported OpenRTB version"
+                  code:
+                    type: integer
+                    example: 422
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "RATE_LIMIT_EXCEEDED"
+                  message:
+                    type: string
+                    example: "Too many requests"
+                  code:
+                    type: integer
+                    example: 429
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "INTERNAL_SERVER_ERROR"
+                  message:
+                    type: string
+                    example: "An unexpected error occurred"
+                  code:
+                    type: integer
+                    example: 500
+
+  /bid/test:
+    post:
+      tags:
+        - Bidding
+      summary: Test OpenRTB bid request
+      description: Same as /bid/request - processes incoming OpenRTB bid requests for testing purposes
+      parameters:
+        - name: X-OpenRTB-Version
+          in: header
+          description: OpenRTB version (2.0-2.6)
+          required: false
+          schema:
+            type: string
+            default: "2.5"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/paths/~1bid~1request/post/requestBody/content/application~1json/schema'
+      responses:
+        '200':
+          $ref: '#/paths/~1bid~1request/post/responses/200'
+        '204':
+          $ref: '#/paths/~1bid~1request/post/responses/204'
+        '400':
+          $ref: '#/paths/~1bid~1request/post/responses/400'
+        '422':
+          $ref: '#/paths/~1bid~1request/post/responses/422'
+        '429':
+          $ref: '#/paths/~1bid~1request/post/responses/429'
+        '500':
+          $ref: '#/paths/~1bid~1request/post/responses/500'
+
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Get application health status
+      description: Returns comprehensive health information including dependencies, goroutines, and memory usage
+      responses:
+        '200':
+          description: Application is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  goroutine_stats:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 15
+                      max_allowed:
+                        type: integer
+                        example: 1000
+                      percentage:
+                        type: number
+                        format: float
+                        example: 1.5
+                      memory_stats:
+                        type: object
+                        properties:
+                          alloc_mb:
+                            type: integer
+                            example: 12
+                          total_alloc_mb:
+                            type: integer
+                            example: 25
+                          sys_mb:
+                            type: integer
+                            example: 35
+                          num_gc:
+                            type: integer
+                            example: 5
+                  request_stats:
+                    type: object
+                    properties:
+                      active_requests:
+                        type: integer
+                        example: 2
+                      total_requests:
+                        type: integer
+                        example: 1500
+                      failed_requests:
+                        type: integer
+                        example: 15
+                      success_rate:
+                        type: integer
+                        example: 99
+                  dependencies:
+                    type: object
+                    properties:
+                      redis:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                            example: "healthy"
+                          response_time_ms:
+                            type: integer
+                            example: 1500
+                          last_checked:
+                            type: string
+                            format: date-time
+              examples:
+                healthy:
+                  summary: Healthy application
+                  value:
+                    status: "healthy"
+                    goroutine_stats:
+                      total: 15
+                      max_allowed: 1000
+                      percentage: 1.5
+                      memory_stats:
+                        alloc_mb: 12
+                        total_alloc_mb: 25
+                        sys_mb: 35
+                        num_gc: 5
+                    request_stats:
+                      active_requests: 2
+                      total_requests: 1500
+                      failed_requests: 15
+                      success_rate: 99
+                    dependencies:
+                      redis:
+                        status: "healthy"
+                        response_time_ms: 1500000
+                        last_checked: "2024-03-21T10:30:00Z"
+        '206':
+          description: Application has warnings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "warning"
+                  warnings:
+                    type: array
+                    items:
+                      type: string
+                    example: ["goroutine count exceeds 70% of maximum"]
+              examples:
+                warning:
+                  summary: Application with warnings
+                  value:
+                    status: "warning"
+                    warnings: ["goroutine count exceeds 70% of maximum", "high memory allocation detected"]
+        '503':
+          description: Application is unhealthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "critical"
+                  warnings:
+                    type: array
+                    items:
+                      type: string
+                    example: ["redis dependency is unhealthy"]
+
+  /metrics:
+    get:
+      tags:
+        - Metrics
+      summary: Get application metrics
+      description: Returns JSON formatted application metrics and statistics
+      responses:
+        '200':
+          description: Application metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requests:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 125000
+                      successful:
+                        type: integer
+                        example: 119500
+                      failed:
+                        type: integer
+                        example: 5500
+                      success_rate:
+                        type: number
+                        format: float
+                        example: 95.6
+                      average_response_time_ms:
+                        type: number
+                        format: float
+                        example: 45.2
+                  openrtb:
+                    type: object
+                    properties:
+                      versions:
+                        type: object
+                        properties:
+                          "2.0":
+                            type: integer
+                            example: 1250
+                          "2.5":
+                            type: integer
+                            example: 45800
+                      impression_types:
+                        type: object
+                        properties:
+                          banner:
+                            type: integer
+                            example: 89500
+                          video:
+                            type: integer
+                            example: 28750
+              examples:
+                metrics_example:
+                  summary: Application metrics
+                  value:
+                    requests:
+                      total: 125000
+                      successful: 119500
+                      failed: 5500
+                      success_rate: 95.6
+                      average_response_time_ms: 45.2
+                    openrtb:
+                      versions:
+                        "2.0": 1250
+                        "2.5": 45800
+                      impression_types:
+                        banner: 89500
+                        video: 28750
+
+
+

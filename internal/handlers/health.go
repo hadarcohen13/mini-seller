@@ -160,49 +160,6 @@ func bToMb(b uint64) uint64 {
 	return b / 1024 / 1024
 }
 
-// ForceGC triggers garbage collection and reports stats
-func ForceGCHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var beforeStats runtime.MemStats
-	runtime.ReadMemStats(&beforeStats)
-	beforeGoroutines := runtime.NumGoroutine()
-
-	// Force garbage collection
-	runtime.GC()
-	runtime.GC() // Run twice for thoroughness
-
-	var afterStats runtime.MemStats
-	runtime.ReadMemStats(&afterStats)
-	afterGoroutines := runtime.NumGoroutine()
-
-	result := map[string]interface{}{
-		"before": map[string]interface{}{
-			"goroutines": beforeGoroutines,
-			"alloc_mb":   bToMb(beforeStats.Alloc),
-			"sys_mb":     bToMb(beforeStats.Sys),
-		},
-		"after": map[string]interface{}{
-			"goroutines": afterGoroutines,
-			"alloc_mb":   bToMb(afterStats.Alloc),
-			"sys_mb":     bToMb(afterStats.Sys),
-		},
-		"freed_mb": bToMb(beforeStats.Alloc - afterStats.Alloc),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
-
-	logrus.WithFields(logrus.Fields{
-		"before_goroutines": beforeGoroutines,
-		"after_goroutines":  afterGoroutines,
-		"freed_mb":          result["freed_mb"],
-	}).Info("Forced garbage collection completed")
-}
-
 // MetricsHandler provides application metrics endpoint
 func MetricsHandler(w http.ResponseWriter, r *http.Request) {
 	stats := metrics.GetGlobalStats()
@@ -215,20 +172,6 @@ func MetricsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logrus.Debug("Metrics endpoint accessed")
-}
-
-// PerformanceHandler provides performance monitoring endpoint
-func PerformanceHandler(w http.ResponseWriter, r *http.Request) {
-	performanceStats := metrics.GetPerformanceStats()
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(performanceStats); err != nil {
-		logrus.WithError(err).Error("Failed to encode performance stats")
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	logrus.Debug("Performance endpoint accessed")
 }
 
 // checkDependencies checks the health of all dependencies
