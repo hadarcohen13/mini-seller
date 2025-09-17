@@ -17,6 +17,7 @@ func RateLimiterMiddleware(r float64, b int) func(next http.Handler) http.Handle
 					WithContext("client_ip", req.RemoteAddr).
 					WithContext("path", req.URL.Path).
 					WithUserMessage("You are making too many requests. Please slow down and try again later.").
+					WithHTTPStatus(http.StatusTooManyRequests).
 					WithRetryable(true)
 				WriteErrorResponse(w, req, rateErr)
 				return

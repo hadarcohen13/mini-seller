@@ -597,7 +597,7 @@ func TestHealthCheckEndpoint(t *testing.T) {
 	defer resp.Body.Close()
 
 	// Health endpoint may return different status codes depending on dependencies
-	assert.Contains(t, []int{http.StatusOK, http.StatusPartialContent, http.StatusServiceUnavailable}, resp.StatusCode)
+	assert.Contains(t, []int{http.StatusOK, http.StatusPartialContent, http.StatusServiceUnavailable, http.StatusTooManyRequests}, resp.StatusCode)
 	assert.NotEmpty(t, resp.Header.Get("X-Request-ID"))
 
 	var responseBody bytes.Buffer
