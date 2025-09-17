@@ -19,6 +19,9 @@ func RequestIDMiddleware(next http.Handler) http.Handler {
 		// Add to response header
 		w.Header().Set("X-Request-ID", requestID)
 
+		// Add to request header for downstream handlers
+		r.Header.Set("X-Request-ID", requestID)
+
 		// Add to request context
 		ctx := context.WithValue(r.Context(), "request_id", requestID)
 		r = r.WithContext(ctx)

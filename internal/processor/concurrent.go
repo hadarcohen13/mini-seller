@@ -127,17 +127,24 @@ func (bp *BidProcessor) worker(workerID int) {
 		results, err := bp.ProcessBidRequest(ctx, bidReq.Request, bidReq.RequestID)
 
 		// Send results back
+		var sentResult bool
 		if len(results) > 0 {
 			// Send first successful result
 			for _, result := range results {
 				if result.Error == nil && result.Response != nil {
 					bidReq.ResponseCh <- result
+					sentResult = true
 					break
 				}
 			}
+			// If no successful result found, send the first result (even if it's an error)
+			if !sentResult {
+				bidReq.ResponseCh <- results[0]
+				sentResult = true
+			}
 		}
 
-		if err != nil {
+		if err != nil && !sentResult {
 			bidReq.ResponseCh <- &BidResult{Error: err}
 		}
 
