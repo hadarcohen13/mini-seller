@@ -83,10 +83,8 @@ func LoadConfig() error {
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("./configs")
 	viper.AddConfigPath("/etc/mini-seller/")
-
 	viper.AutomaticEnv()
 	viper.SetEnvPrefix("MINI_SELLER")
-
 	// Bind specific environment variables
 	viper.BindEnv("server.port", "MINI_SELLER_SERVER_PORT")
 	viper.BindEnv("server.host", "MINI_SELLER_SERVER_HOST")

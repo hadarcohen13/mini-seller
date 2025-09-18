@@ -1,0 +1,55 @@
+environment: production
+
+server:
+  host: 0.0.0.0
+  port: 8080
+  read_timeout_ms: 15000
+  write_timeout_ms: 20000
+  shutdown_timeout_ms: 60000
+  health_check_timeout_ms: 10000
+  idle_conn_timeout_ms: 300000
+  worker_stop_timeout_ms: 10000
+
+redis:
+  host: redis
+  port: 6379
+  password: ""
+  db: 0
+  pool_size: 50
+  min_idle_conns: 10
+  pool_timeout_ms: 8000
+  idle_timeout_ms: 600000
+  idle_check_frequency_ms: 120000
+
+debug: false
+
+rate_limit:
+  qps: 1000
+  burst: 2000
+
+rate_limiting:
+  requests_per_second: 1000
+  burst_size: 2000
+
+logging:
+  level: info
+  format: json
+
+buyers:
+  - id: "buyer1"
+    name: "Production Buyer 1"
+    endpoint: "http://buyer1.internal:8080/bid"
+    timeout_ms: 200
+    qps: 500
+  - id: "buyer2"
+    name: "Production Buyer 2"
+    endpoint: "http://buyer2.internal:8080/bid"
+    timeout_ms: 200
+    qps: 500
+
+buyer:
+  id: "primary"
+  name: "Primary Production Buyer"
+  endpoint: "http://primary-buyer.internal:8080/bid"
+  timeout_ms: 200
+  qps: 800

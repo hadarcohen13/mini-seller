@@ -1,0 +1,55 @@
+environment: test
+
+server:
+  host: 0.0.0.0
+  port: 8081
+  read_timeout_ms: 2000
+  write_timeout_ms: 3000
+  shutdown_timeout_ms: 10000
+  health_check_timeout_ms: 2000
+  idle_conn_timeout_ms: 30000
+  worker_stop_timeout_ms: 2000
+
+redis:
+  host: localhost
+  port: 6380
+  password: ""
+  db: 1
+  pool_size: 5
+  min_idle_conns: 2
+  pool_timeout_ms: 2000
+  idle_timeout_ms: 60000
+  idle_check_frequency_ms: 30000
+
+debug: true
+
+rate_limit:
+  qps: 10000
+  burst: 20000
+
+rate_limiting:
+  requests_per_second: 10000
+  burst_size: 20000
+
+logging:
+  level: debug
+  format: json
+
+buyers:
+  - id: "test_buyer1"
+    name: "Test Buyer 1"
+    endpoint: "http://localhost:9001/bid"
+    timeout_ms: 50
+    qps: 1000
+  - id: "test_buyer2"
+    name: "Test Buyer 2"
+    endpoint: "http://localhost:9002/bid"
+    timeout_ms: 50
+    qps: 1000
+
+buyer:
+  id: "test_default"
+  name: "Test Default Buyer"
+  endpoint: "http://localhost:9000/bid"
+  timeout_ms: 50
+  qps: 2000
